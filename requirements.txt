@@ -4,4 +4,5 @@ pydantic>=2.7
 numpy>=2.0
 scikit-learn>=1.5
 xgboost>=2.1
-torch>=2.2          # real LSTM temporal-drift autoencoder (CPU build is fine)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
