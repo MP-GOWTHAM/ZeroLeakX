@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZeroLeakX — Live ATO Detection | PSB Hackathon 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080C18;--s1:#0D1225;--s2:#121830;--s3:#18203A;
+  --border:#1A2540;--border2:#223060;
+  --blue:#3D7FFF;--blue-dim:rgba(61,127,255,.12);
+  --teal:#00D4A4;--teal-dim:rgba(0,212,164,.1);
+  --red:#FF4D4D;--red-dim:rgba(255,77,77,.12);
+  --amber:#FFB020;--amber-dim:rgba(255,176,32,.1);
+  --green:#00C97A;--green-dim:rgba(0,201,122,.1);
+  --purple:#9B6FFF;
+  --text:#DDE4F5;--muted:#4A5880;--muted2:#6B7A9E;
+  --radius:10px;--radius-lg:14px;
+  --font:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;overflow:hidden}
+.shell{display:grid;grid-template-columns:220px 1fr 300px;height:100vh}
+.sidebar{background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.brand{padding:20px 18px 16px;border-bottom:1px solid var(--border)}
+.brand-logo{display:flex;align-items:center;gap:10px}
+.brand-icon{width:32px;height:32px;background:var(--blue-dim);border:1px solid rgba(61,127,255,.3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.brand-name{font-size:14px;font-weight:700;color:#fff;letter-spacing:.3px}
+.brand-sub{font-size:10px;color:var(--muted2);margin-top:1px}
+.dts-mini{margin:14px 18px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px}
+.dts-mini-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:8px;font-weight:600}
+.dts-mini-num{font-size:28px;font-weight:800;transition:color .4s;line-height:1}
+.dts-mini-bar{height:4px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+.dts-mini-fill{height:100%;border-radius:2px;transition:width .6s ease,background .6s}
+.dts-mini-status{font-size:10px;margin-top:5px;font-weight:500}
+.nav-group{padding:8px 10px 0}
+.nav-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:8px 8px 4px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--muted2);font-size:12px;font-weight:500;transition:all .15s;margin-bottom:2px}
+.nav-item:hover{background:var(--s3);color:var(--text)}
+.nav-item.active{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(61,127,255,.2)}
+.nav-item svg{flex-shrink:0;opacity:.7}
+.nav-item.active svg{opacity:1}
+.session-info{margin-top:auto;padding:14px 18px;border-top:1px solid var(--border)}
+.session-row{display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;background:var(--blue-dim);border:1px solid rgba(61,127,255,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--blue)}
+.session-name{font-size:12px;font-weight:500}
+.session-acct{font-size:10px;color:var(--muted2);margin-top:1px}
+.session-dot{width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:auto;box-shadow:0 0 6px var(--green)}
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.page-title{font-size:14px;font-weight:600}
+.breadcrumb{font-size:11px;color:var(--muted2)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.trust-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid;transition:all .4s;display:flex;align-items:center;gap:6px}
+.trust-dot{width:6px;height:6px;border-radius:50%}
+.trust-high{background:var(--green-dim);border-color:rgba(0,201,122,.3);color:var(--green)}
+.trust-med{background:var(--amber-dim);border-color:rgba(255,176,32,.3);color:var(--amber)}
+.trust-low{background:var(--red-dim);border-color:rgba(255,77,77,.3);color:var(--red)}
+.time-display{font-family:var(--mono);font-size:11px;color:var(--muted2)}
+.main-scroll{flex:1;overflow-y:auto;padding:20px 24px}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.card{background:var(--s2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:16px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2)}
+.card-badge{font-size:10px;padding:2px 8px;border-radius:12px;font-weight:600}
+.badge-live{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,77,77,.25)}
+.badge-ok{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,201,122,.25)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
+.stat-box{background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:14px}
+.stat-val{font-size:22px;font-weight:800;line-height:1.1;margin-bottom:4px}
+.stat-label{font-size:10px;color:var(--muted2);font-weight:500}
+.stat-change{font-size:10px;margin-top:4px;font-weight:500}
+.balance-num{font-size:36px;font-weight:800;letter-spacing:-1.5px}
+.balance-acct{font-size:11px;color:var(--muted2);margin-top:5px}
+.btn{padding:8px 18px;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font);display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#2d6fe8}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted2)}.btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
+.btn-red{background:var(--red-dim);border:1px solid rgba(255,77,77,.3);color:var(--red)}
+.btn-amber{background:var(--amber-dim);border:1px solid rgba(255,176,32,.3);color:var(--amber)}
+.btn-green{background:var(--green-dim);border:1px solid rgba(0,201,122,.3);color:var(--green)}
+.btn-sm{padding:5px 12px;font-size:11px}
+.txn-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}.txn-row:last-child{border-bottom:none}
+.txn-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.txn-info{flex:1;margin:0 12px}.txn-name{font-size:12px;font-weight:500}.txn-date{font-size:10px;color:var(--muted2);margin-top:2px}
+.txn-amt{font-size:13px;font-weight:700}
+.form-group{margin-bottom:14px}
+.form-label{font-size:10px;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+.form-input{width:100%;background:var(--s3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;transition:border .15s;font-family:var(--font)}
+.form-input:focus{border-color:var(--blue)}.form-input::placeholder{color:var(--muted)}
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.risk-notice{background:var(--red-dim);border:1px solid rgba(255,77,77,.25);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--red);margin-bottom:14px;display:none}.risk-notice.show{display:flex;align-items:center;gap:8px}
+.chart-wrap{position:relative;height:120px}
+.sig-grid{display:flex;flex-direction:column;gap:8px}
+.sig-row{display:flex;align-items:center;gap:10px}
+.sig-label{font-size:11px;color:var(--muted2);width:100px;flex-shrink:0}
+.sig-track{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.sig-fill{height:100%;border-radius:3px;transition:width .5s ease,background .5s}
+.sig-num{font-family:var(--mono);font-size:10px;color:var(--muted2);width:28px;text-align:right}
+.sig-delta{font-size:10px;width:36px;text-align:right;font-weight:600}
+.soc{background:var(--s1);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.soc-top{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--s2);flex-shrink:0}
+.soc-title{font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1.5s ease infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,77,77,.5)}50%{opacity:.7;box-shadow:0 0 0 4px rgba(255,77,77,0)}}
+.soc-scroll{flex:1;overflow-y:auto}
+.soc-block{padding:14px 16px;border-bottom:1px solid var(--border)}
+.soc-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;font-weight:600}
+.dts-gauge{text-align:center;padding:4px 0 8px}
+.dts-big{font-size:42px;font-weight:900;transition:color .5s;line-height:1;letter-spacing:-2px}
+.dts-of{font-size:11px;color:var(--muted2);margin-top:2px}
+.dts-bar-big{height:8px;background:var(--border);border-radius:4px;margin:12px 0 6px;overflow:hidden}
+.dts-fill-big{height:100%;border-radius:4px;transition:width .7s cubic-bezier(.4,0,.2,1),background .7s}
+.risk-gradient{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--amber),var(--red));margin-top:8px;position:relative}
+.risk-needle{position:absolute;top:-4px;width:2px;height:14px;background:#fff;border-radius:1px;transform:translateX(-50%);transition:left .7s cubic-bezier(.4,0,.2,1);box-shadow:0 0 6px rgba(255,255,255,.5)}
+.dts-verdict{font-size:11px;font-weight:600;margin-top:8px;padding:4px 12px;border-radius:12px;display:inline-block;transition:all .4s}
+.shap-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.shap-label{font-size:10px;color:var(--muted2);width:90px;flex-shrink:0}
+.shap-track{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.shap-fill{height:100%;border-radius:2px;transition:width .5s,background .5s}
+.shap-pct{font-size:10px;font-family:var(--mono);color:var(--muted2);width:34px;text-align:right}
+.alert-item{padding:8px 10px;border-radius:8px;margin-bottom:6px;border-left:3px solid;background:var(--s2)}
+.alert-time{font-size:9px;color:var(--muted);margin-bottom:2px;font-family:var(--mono)}
+.alert-msg{font-size:11px;font-weight:500;line-height:1.4}
+.alert-green{border-left-color:var(--green)}.alert-amber{border-left-color:var(--amber)}.alert-red{border-left-color:var(--red)}.alert-blue{border-left-color:var(--blue)}
+.sim-card{background:var(--s3);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:10px}
+.sim-title{font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px}
+.sim-desc{font-size:10px;color:var(--muted2);line-height:1.5;margin-bottom:10px}
+.sim-btns{display:flex;gap:8px;flex-wrap:wrap}
+.attacker-banner{background:var(--red-dim);border:1px solid rgba(255,77,77,.3);border-radius:10px;padding:10px 14px;display:none;align-items:center;justify-content:space-between;margin-bottom:14px}
+.attacker-banner.show{display:flex}
+.attacker-banner-text{font-size:11px;color:var(--red);font-weight:600}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .3s}
+.overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--s2);border:1px solid var(--border2);border-radius:18px;padding:32px;width:340px;text-align:center}
+.modal-icon{font-size:40px;margin-bottom:14px}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:8px}
+.modal-desc{font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:22px}
+.otp-row{display:flex;gap:8px;justify-content:center;margin-bottom:8px}
+.otp-box{width:42px;height:52px;background:var(--s3);border:1px solid var(--border2);border-radius:10px;text-align:center;color:var(--text);font-size:20px;font-weight:700;outline:none;font-family:var(--mono)}
+.otp-box:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(61,127,255,.2)}
+.otp-hint{font-size:10px;color:var(--muted);margin-bottom:18px;line-height:1.5}
+.modal-actions{display:flex;gap:10px;justify-content:center}
+.blocked-overlay{position:fixed;inset:0;background:rgba(8,12,24,.95);display:flex;align-items:center;justify-content:center;z-index:300;opacity:0;pointer-events:none;transition:opacity .4s}
+.blocked-overlay.show{opacity:1;pointer-events:all}
+.blocked-card{background:var(--s2);border:1px solid rgba(255,77,77,.4);border-radius:18px;padding:40px;text-align:center;max-width:360px}
+.blocked-icon{font-size:56px;margin-bottom:16px}
+.blocked-title{font-size:20px;font-weight:800;color:var(--red);margin-bottom:8px}
+.blocked-desc{font-size:12px;color:var(--muted2);line-height:1.7;margin-bottom:24px}
+.incident-id{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--s3);padding:6px 12px;border-radius:6px;margin-bottom:20px;display:inline-block}
+.soc-fab{display:none;position:fixed;bottom:18px;right:18px;z-index:160;align-items:center;gap:7px;background:var(--blue);color:#fff;border:none;border-radius:24px;padding:11px 16px;font-family:var(--font);font-size:13px;font-weight:700;box-shadow:0 6px 20px rgba(61,127,255,.45);cursor:pointer}
+.soc-fab .fab-dts{font-family:var(--mono)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+@media(max-width:860px){
+  html,body{overflow:auto;height:auto}
+  .shell{display:flex;flex-direction:column;height:auto;min-height:100vh}
+  .sidebar{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+  .brand{display:flex;align-items:center;justify-content:space-between}
+  .dts-mini{margin:10px 14px}.nav-group{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px}
+  .nav-label{display:none}.nav-item{flex:0 0 auto;margin-bottom:0;padding:7px 11px}
+  .session-info{display:flex;align-items:center;gap:10px;margin-top:0}
+  .main{height:auto;overflow:visible}.topbar{height:auto;min-height:48px;padding:8px 14px;flex-wrap:wrap;gap:8px}
+  .main-scroll{overflow:visible;padding:14px}.grid4{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}
+  .soc{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;height:82vh;border-left:none;border-top:1px solid var(--border2);transform:translateY(101%);transition:transform .3s ease;z-index:150;box-shadow:0 -12px 32px rgba(0,0,0,.55)}
+  .soc.soc-open{transform:translateY(0)}.soc-fab{display:inline-flex}
+  .modal,.blocked-card{width:90vw;max-width:360px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="brand"><div class="brand-logo"><div class="brand-icon">🛡</div><div><div class="brand-name">ZeroLeakX</div><div class="brand-sub">PSB Hackathon 2026</div></div></div></div>
+  <div class="dts-mini">
+    <div class="dts-mini-label">Live Trust Score</div>
+    <div class="dts-mini-num" id="dts-mini-num" style="color:var(--green)">94</div>
+    <div class="dts-mini-bar"><div class="dts-mini-fill" id="dts-mini-fill" style="width:94%;background:var(--green)"></div></div>
+    <div class="dts-mini-status" id="dts-mini-status" style="color:var(--green)">● Session trusted</div>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">Banking</div>
+    <div class="nav-item active" onclick="switchNav(this,'dashboard')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+    <div class="nav-item" onclick="switchNav(this,'transfer')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Transfer funds</div>
+    <div class="nav-label">Security</div>
+    <div class="nav-item" onclick="switchNav(this,'soc-view')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>SOC View</div>
+    <div class="nav-item" onclick="switchNav(this,'simulate')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>Simulate</div>
+  </div>
+  <div class="session-info"><div class="session-row"><div class="avatar">MP</div><div><div class="session-name">Murugesan P.</div><div class="session-acct">A/C •••• 4821</div></div><div class="session-dot"></div></div></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left"><div class="page-title" id="page-title">Dashboard</div><div class="breadcrumb">BOB NetBanking › <span id="page-crumb">Overview</span></div></div>
+    <div class="topbar-right">
+      <div class="time-display" id="clock">--:--:--</div>
+      <div class="trust-pill trust-high" id="trust-pill"><div class="trust-dot" style="background:var(--green)"></div><span id="trust-text">Trusted</span></div>
+    </div>
+  </div>
+  <div class="main-scroll">
+    <div class="attacker-banner" id="attacker-banner"><div class="attacker-banner-text">⚠ Attacker simulation active — behavioural mismatch being scored by the model</div><button class="btn btn-sm btn-ghost" onclick="simReset()">Stop sim</button></div>
+
+    <!-- DASHBOARD -->
+    <div id="panel-dashboard" class="tab-panel active">
+      <div class="grid4" style="margin-bottom:16px">
+        <div class="stat-box"><div class="stat-val" style="color:var(--text)">₹4,82,150</div><div class="stat-label">Account balance</div><div class="stat-change" style="color:var(--green)">+₹85,000 this month</div></div>
+        <div class="stat-box"><div class="stat-val" id="sessions-blocked" style="color:var(--red)">0</div><div class="stat-label">Attacks blocked</div><div class="stat-change" style="color:var(--muted2)">this session</div></div>
+        <div class="stat-box"><div class="stat-val" id="dts-avg" style="color:var(--amber)">94</div><div class="stat-label">Avg DTS (session)</div><div class="stat-change" style="color:var(--muted2)">updated live</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:var(--purple)">6</div><div class="stat-label">Signals monitored</div><div class="stat-change" style="color:var(--muted2)">continuous</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-header"><div class="card-title">Account balance</div><span class="card-badge badge-ok">Verified</span></div>
+          <div style="padding:6px 0 16px"><div class="balance-num" id="balance-display">₹4,82,150.00</div><div class="balance-acct">Savings • Bank of Baroda • •••• 4821</div></div>
+          <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-primary btn-sm" onclick="switchNav(document.querySelector('[onclick*=transfer]'),'transfer')">Transfer</button></div>
+        </div>
+        <div class="card"><div class="card-header"><div class="card-title">DTS history</div><span class="card-badge badge-live">● LIVE</span></div><div class="chart-wrap"><canvas id="dts-chart"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Recent transactions</div><span class="card-badge badge-ok">All verified</span></div>
+        <div class="txn-row"><div class="txn-icon" style="background:rgba(255,176,32,.1)">🍕</div><div class="txn-info"><div class="txn-name">Swiggy</div><div class="txn-date">Today 11:42 AM · Food & Dining</div></div><div class="txn-amt" style="color:var(--red)">−₹348</div></div>
+        <div class="txn-row"><div class="txn-icon" style="background:rgba(0,201,122,.1)">💰</div><div class="txn-info"><div class="txn-name">Salary credit — PSG Tech</div><div class="txn-date">Jun 20 · Income</div></div><div class="txn-amt" style="color:var(--green)">+₹85,000</div></div>
+        <div class="txn-row"><div class="txn-icon" style="background:rgba(61,127,255,.1)">⚡</div><div class="txn-info"><div class="txn-name">BESCOM Electricity Bill</div><div class="txn-date">Jun 18 · Utilities</div></div><div class="txn-amt" style="color:var(--red)">−₹2,140</div></div>
+        <div class="txn-row"><div class="txn-icon" style="background:rgba(155,111,255,.1)">📦</div><div class="txn-info"><div class="txn-name">Amazon Pay</div><div class="txn-date">Jun 15 · Shopping</div></div><div class="txn-amt" style="color:var(--red)">−₹1,299</div></div>
+      </div>
+    </div>
+
+    <!-- TRANSFER -->
+    <div id="panel-transfer" class="tab-panel">
+      <div class="grid2">
+        <div class="card"><div class="card-header"><div class="card-title">Fund transfer — NEFT/IMPS</div><span class="card-badge" id="transfer-badge" style="background:var(--green-dim);color:var(--green);border:1px solid rgba(0,201,122,.25)">Secure session</span></div>
+          <div class="risk-notice" id="risk-notice">⚠ High-risk session. Verify identity before transfer.</div>
+          <div class="form-group"><label class="form-label">Beneficiary name</label><input class="form-input" id="bene-name" placeholder="Full name" oninput="recordTyping(event)"></div>
+          <div class="input-row"><div class="form-group"><label class="form-label">Account number</label><input class="form-input" id="bene-acct" placeholder="Enter account no." oninput="recordTyping(event)"></div><div class="form-group"><label class="form-label">IFSC code</label><input class="form-input" id="bene-ifsc" placeholder="e.g. BARB0COIMBR" oninput="recordTyping(event)"></div></div>
+          <div class="input-row"><div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-input" id="txn-amt" placeholder="0.00" type="number" oninput="recordTyping(event)"></div><div class="form-group"><label class="form-label">Mode</label><select class="form-input"><option>IMPS (Instant)</option><option>NEFT</option><option>RTGS</option></select></div></div>
+          <button class="btn btn-primary" style="width:100%" onclick="doTransfer()">Confirm transfer</button>
+        </div>
+        <div class="card"><div class="card-header"><div class="card-title">Transfer risk assessment</div></div>
+          <div class="dts-gauge" style="padding-bottom:4px"><div style="font-size:11px;color:var(--muted2);margin-bottom:4px">Current session DTS</div><div class="dts-big" id="dts-xfer" style="color:var(--green)">94</div><div class="dts-bar-big"><div class="dts-fill-big" id="dts-xfer-bar" style="width:94%;background:var(--green)"></div></div></div>
+          <div class="sig-grid" style="margin-top:10px">
+            <div class="sig-row"><span class="sig-label">Keystroke pattern</span><div class="sig-track"><div class="sig-fill" id="xs-key" style="width:92%;background:var(--green)"></div></div><span class="sig-num" id="xn-key">92</span></div>
+            <div class="sig-row"><span class="sig-label">Device fingerprint</span><div class="sig-track"><div class="sig-fill" id="xs-dev" style="width:100%;background:var(--green)"></div></div><span class="sig-num" id="xn-dev">100</span></div>
+            <div class="sig-row"><span class="sig-label">Geo context</span><div class="sig-track"><div class="sig-fill" id="xs-geo" style="width:98%;background:var(--green)"></div></div><span class="sig-num" id="xn-geo">98</span></div>
+          </div>
+          <div style="margin-top:14px;font-size:10px;color:var(--muted2);line-height:1.6" id="xfer-advice">Session trust is high. Transfer can proceed without additional verification.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOC VIEW -->
+    <div id="panel-soc-view" class="tab-panel">
+      <div class="grid2">
+        <div class="card"><div class="card-header"><div class="card-title">Behavioral signal matrix</div><span class="card-badge badge-live">● LIVE</span></div>
+          <div class="sig-grid">
+            <div class="sig-row"><span class="sig-label">Keystroke timing</span><div class="sig-track"><div class="sig-fill" id="ms-key" style="width:92%;background:var(--green)"></div></div><span class="sig-num" id="mn-key">92</span><span class="sig-delta" id="md-key" style="color:var(--green)">+0</span></div>
+            <div class="sig-row"><span class="sig-label">Pointer / swipe</span><div class="sig-track"><div class="sig-fill" id="ms-swipe" style="width:88%;background:var(--green)"></div></div><span class="sig-num" id="mn-swipe">88</span><span class="sig-delta" id="md-swipe" style="color:var(--green)">+0</span></div>
+            <div class="sig-row"><span class="sig-label">Navigation flow</span><div class="sig-track"><div class="sig-fill" id="ms-nav" style="width:95%;background:var(--green)"></div></div><span class="sig-num" id="mn-nav">95</span><span class="sig-delta" id="md-nav" style="color:var(--green)">+0</span></div>
+            <div class="sig-row"><span class="sig-label">Device fingerprint</span><div class="sig-track"><div class="sig-fill" id="ms-dev" style="width:100%;background:var(--green)"></div></div><span class="sig-num" id="mn-dev">100</span><span class="sig-delta" id="md-dev" style="color:var(--green)">+0</span></div>
+            <div class="sig-row"><span class="sig-label">Geo context</span><div class="sig-track"><div class="sig-fill" id="ms-geo" style="width:98%;background:var(--green)"></div></div><span class="sig-num" id="mn-geo">98</span><span class="sig-delta" id="md-geo" style="color:var(--green)">+0</span></div>
+            <div class="sig-row"><span class="sig-label">Txn velocity</span><div class="sig-track"><div class="sig-fill" id="ms-txn" style="width:90%;background:var(--green)"></div></div><span class="sig-num" id="mn-txn">90</span><span class="sig-delta" id="md-txn" style="color:var(--green)">+0</span></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-header"><div class="card-title">SHAP anomaly contribution</div></div>
+          <div class="sig-grid">
+            <div class="shap-row"><span class="shap-label">Keystroke</span><div class="shap-track"><div class="shap-fill" id="sh-key" style="width:4%;background:var(--green)"></div></div><span class="shap-pct" id="sp-key">4%</span></div>
+            <div class="shap-row"><span class="shap-label">Swipe</span><div class="shap-track"><div class="shap-fill" id="sh-swipe" style="width:3%;background:var(--green)"></div></div><span class="shap-pct" id="sp-swipe">3%</span></div>
+            <div class="shap-row"><span class="shap-label">Navigation</span><div class="shap-track"><div class="shap-fill" id="sh-nav" style="width:2%;background:var(--green)"></div></div><span class="shap-pct" id="sp-nav">2%</span></div>
+            <div class="shap-row"><span class="shap-label">Device</span><div class="shap-track"><div class="shap-fill" id="sh-dev" style="width:1%;background:var(--green)"></div></div><span class="shap-pct" id="sp-dev">1%</span></div>
+            <div class="shap-row"><span class="shap-label">Geo</span><div class="shap-track"><div class="shap-fill" id="sh-geo" style="width:2%;background:var(--green)"></div></div><span class="shap-pct" id="sp-geo">2%</span></div>
+            <div class="shap-row"><span class="shap-label">Velocity</span><div class="shap-track"><div class="shap-fill" id="sh-txn" style="width:3%;background:var(--green)"></div></div><span class="shap-pct" id="sp-txn">3%</span></div>
+          </div>
+          <div style="margin-top:12px;font-size:10px;color:var(--muted2)" id="shap-verdict">All signals nominal — no anomaly contribution above threshold.</div>
+        </div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Session event log</div></div><div id="soc-full-log" style="max-height:220px;overflow-y:auto"></div></div>
+    </div>
+
+    <!-- SIMULATE -->
+    <div id="panel-simulate" class="tab-panel">
+      <div class="card"><div class="card-header"><div class="card-title">ZeroLeakX scenario simulator</div></div>
+        <div style="font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:16px">Each scenario demonstrates a different facet of ATO detection. Watch the SOC panel react in real time.</div>
+        <div class="sim-card"><div class="sim-title">Scenario 1 — Credential-stuffing takeover</div><div class="sim-desc">Attacker logs in with stolen credentials. Keystroke, device and geo all diverge over ~8s. DTS crosses critical → step-up OTP. Attacker fails → session killed.</div><div class="sim-btns"><button class="btn btn-red btn-sm" onclick="simAttack()">▶ Run scenario</button><button class="btn btn-ghost btn-sm" onclick="simReset()">Reset</button></div></div>
+        <div class="sim-card"><div class="sim-title">Scenario 2 — Geo anomaly (travel)</div><div class="sim-desc">Legitimate user logs in from 380 km away. Geo drops but behaviour is clean — DTS dips slightly, flagged but NOT challenged. Correct: travel alone shouldn't block.</div><div class="sim-btns"><button class="btn btn-amber btn-sm" onclick="simGeo()">▶ Run scenario</button><button class="btn btn-ghost btn-sm" onclick="simReset()">Reset</button></div></div>
+        <div class="sim-card"><div class="sim-title">Scenario 3 — New device login</div><div class="sim-desc">Unrecognised device. Fingerprint drops to 0; behaviour stays consistent. Step-up OTP triggered. Passes → device trusted.</div><div class="sim-btns"><button class="btn btn-amber btn-sm" onclick="simNewDevice()">▶ Run scenario</button><button class="btn btn-ghost btn-sm" onclick="simReset()">Reset</button></div></div>
+        <div class="sim-card"><div class="sim-title">Scenario 4 — Legitimate session</div><div class="sim-desc">Type naturally in the transfer form. Watch keystroke dynamics respond to your real typing. DTS stays high, no alerts.</div><div class="sim-btns"><button class="btn btn-green btn-sm" onclick="simReset();switchNav(document.querySelector('[onclick*=transfer]'),'transfer')">▶ Go to transfer form</button></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SOC PANEL -->
+<div class="soc">
+  <div class="soc-top"><div class="soc-title"><div class="live-dot"></div>SOC Monitor</div></div>
+  <div class="soc-scroll">
+    <div class="soc-block"><div class="soc-label">Dynamic Trust Score</div>
+      <div class="dts-gauge"><div class="dts-big" id="dts-big" style="color:var(--green)">94</div><div class="dts-of">/100</div>
+        <div class="dts-bar-big"><div class="dts-fill-big" id="dts-fill-big" style="width:94%;background:var(--green)"></div></div>
+        <div class="risk-gradient"><div class="risk-needle" id="risk-needle" style="left:94%"></div></div>
+        <div class="dts-verdict trust-high" id="dts-verdict" style="background:var(--green-dim);color:var(--green);border:1px solid rgba(0,201,122,.3)">Low risk</div>
+      </div>
+    </div>
+    <div class="soc-block"><div class="soc-label">Signal breakdown</div>
+      <div class="sig-grid">
+        <div class="sig-row"><span class="sig-label">Keystroke</span><div class="sig-track"><div class="sig-fill" id="ss-key" style="width:92%;background:var(--green)"></div></div><span class="sig-num" id="sn-key">92</span></div>
+        <div class="sig-row"><span class="sig-label">Swipe</span><div class="sig-track"><div class="sig-fill" id="ss-swipe" style="width:88%;background:var(--green)"></div></div><span class="sig-num" id="sn-swipe">88</span></div>
+        <div class="sig-row"><span class="sig-label">Navigation</span><div class="sig-track"><div class="sig-fill" id="ss-nav" style="width:95%;background:var(--green)"></div></div><span class="sig-num" id="sn-nav">95</span></div>
+        <div class="sig-row"><span class="sig-label">Device</span><div class="sig-track"><div class="sig-fill" id="ss-dev" style="width:100%;background:var(--green)"></div></div><span class="sig-num" id="sn-dev">100</span></div>
+        <div class="sig-row"><span class="sig-label">Geo</span><div class="sig-track"><div class="sig-fill" id="ss-geo" style="width:98%;background:var(--green)"></div></div><span class="sig-num" id="sn-geo">98</span></div>
+        <div class="sig-row"><span class="sig-label">Velocity</span><div class="sig-track"><div class="sig-fill" id="ss-txn" style="width:90%;background:var(--green)"></div></div><span class="sig-num" id="sn-txn">90</span></div>
+      </div>
+    </div>
+    <div class="soc-block"><div class="soc-label">Model output</div>
+      <div style="font-size:11px;color:var(--muted2);line-height:1.7" id="model-output">
+        <div>LSTM drift: <span style="color:var(--green);font-family:var(--mono)" id="mo-lstm">Normal</span></div>
+        <div>Isolation Forest: <span style="color:var(--green);font-family:var(--mono)" id="mo-iso">Score 0.04</span></div>
+        <div>XGBoost DTS: <span style="color:var(--green);font-family:var(--mono)" id="mo-xgb">94 / 100</span></div>
+        <div>ATO Probability: <span style="color:var(--green);font-family:var(--mono)" id="mo-ato">2.0%</span></div>
+      </div>
+    </div>
+    <div class="soc-block" style="flex:1;overflow-y:auto"><div class="soc-label">Alert log</div><div id="alert-log"><div class="alert-item alert-green"><div class="alert-time" id="session-start-time">--:--:--</div><div class="alert-msg">Session authenticated — behavioural baseline loaded</div></div></div></div>
+  </div>
+</div>
+</div>
+
+<!-- OTP -->
+<div class="overlay" id="otp-overlay">
+  <div class="modal"><div class="modal-icon">🔐</div><div class="modal-title">Identity verification required</div>
+    <div class="modal-desc">ZeroLeakX detected anomalous behaviour. Enter the OTP sent to •••• 7291 to continue.</div>
+    <div class="otp-row"><input class="otp-box" maxlength="1" id="o1" oninput="otpNext(this,'o2')"><input class="otp-box" maxlength="1" id="o2" oninput="otpNext(this,'o3')"><input class="otp-box" maxlength="1" id="o3" oninput="otpNext(this,'o4')"><input class="otp-box" maxlength="1" id="o4" oninput="otpNext(this,'o5')"><input class="otp-box" maxlength="1" id="o5" oninput="otpNext(this,'o6')"><input class="otp-box" maxlength="1" id="o6" oninput="checkOtp()"></div>
+    <div class="otp-hint">Type <strong style="color:var(--text)">482150</strong> → legitimate user, session restored<br>Any other → attacker confirmed, account locked</div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="verifyOtp()">Verify OTP</button><button class="btn btn-ghost" onclick="document.getElementById('otp-overlay').classList.remove('show')">Cancel</button></div>
+  </div>
+</div>
+<!-- Blocked -->
+<div class="blocked-overlay" id="blocked-overlay">
+  <div class="blocked-card"><div class="blocked-icon">🚫</div><div class="blocked-title">Session terminated</div><div class="blocked-desc">ZeroLeakX confirmed unauthorized access. Session terminated, account holder notified, incident escalated to SOC.</div><div class="incident-id" id="incident-id">Incident #ZLX-2026-0622-0001</div><button class="btn btn-ghost" onclick="resetAll()">Start new session</button></div>
+</div>
+<button class="soc-fab" id="soc-fab" onclick="document.querySelector('.soc').classList.toggle('soc-open')">🛡 SOC <span class="fab-dts" id="fab-dts">94</span></button>
+
+<script>
+// ── State ──
+const S={dts:94,sigs:{key:92,swipe:88,nav:95,dev:100,geo:98,txn:90},prev:{key:92,swipe:88,nav:95,dev:100,geo:98,txn:90},
+  attackMode:false,attackTimer:null,dtsHistory:Array(30).fill(94),typingEvents:[],blockedCount:0,dtsSum:94,dtsTicks:1,incidentCount:0};
+const $=id=>document.getElementById(id);
+const col=v=>v>70?'var(--green)':v>40?'var(--amber)':'var(--red)';
+const hex=v=>v>70?'#00C97A':v>40?'#FFB020':'#FF4D4D';
+
+// ── Chart ──
+const dtsChart=new Chart($('dts-chart').getContext('2d'),{type:'line',data:{labels:Array(30).fill(''),datasets:[{data:[...S.dtsHistory],borderColor:'#00C97A',borderWidth:1.5,fill:true,backgroundColor:c=>{const g=c.chart.ctx.createLinearGradient(0,0,0,120);g.addColorStop(0,'rgba(0,201,122,.2)');g.addColorStop(1,'rgba(0,201,122,0)');return g},tension:.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false,min:0,max:100}}}});
+
+// ── Clock ──
+function updateClock(){$('clock').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false})}
+setInterval(updateClock,1000);updateClock();$('session-start-time').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false});
+
+// ── Nav ──
+function switchNav(el,panel){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));if(el)el.classList.add('active');document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));const t=$('panel-'+panel);if(t)t.classList.add('active');const titles={dashboard:'Dashboard',transfer:'Transfer funds','soc-view':'SOC view',simulate:'Simulate'};$('page-title').textContent=titles[panel]||panel;$('page-crumb').textContent=titles[panel]||panel}
+
+// ── Core update ──
+function updateDTS(val){
+  S.dts=Math.max(0,Math.min(100,val));const r=Math.round(S.dts);S.dtsSum+=r;S.dtsTicks++;const avg=Math.round(S.dtsSum/S.dtsTicks);$('dts-avg').textContent=avg;const c=col(S.dts);
+  $('dts-mini-num').textContent=r;$('dts-mini-num').style.color=c;$('dts-mini-fill').style.width=r+'%';$('dts-mini-fill').style.background=c;$('dts-mini-status').style.color=c;$('dts-mini-status').textContent=S.dts>70?'● Session trusted':S.dts>40?'◐ Moderate risk':'⚠ High risk';
+  ['dts-big','dts-xfer'].forEach(id=>{const e=$(id);if(e){e.textContent=r;e.style.color=c}});['dts-fill-big','dts-xfer-bar'].forEach(id=>{const e=$(id);if(e){e.style.width=r+'%';e.style.background=c}});
+  const n=$('risk-needle');if(n)n.style.left=r+'%';const f=$('fab-dts');if(f){f.textContent=r;f.style.color=r>70?'#bfffe0':r>40?'#ffe6b0':'#ffd0d0'}
+  const v=$('dts-verdict');if(v){if(S.dts>70){v.textContent='Low risk';v.style.background='var(--green-dim)';v.style.color='var(--green)';v.style.border='1px solid rgba(0,201,122,.3)'}else if(S.dts>40){v.textContent='Moderate risk';v.style.background='var(--amber-dim)';v.style.color='var(--amber)';v.style.border='1px solid rgba(255,176,32,.3)'}else{v.textContent='High risk';v.style.background='var(--red-dim)';v.style.color='var(--red)';v.style.border='1px solid rgba(255,77,77,.3)'}}
+  const pill=$('trust-pill'),txt=$('trust-text');if(S.dts>70){pill.className='trust-pill trust-high';txt.textContent='Trusted';pill.querySelector('.trust-dot').style.background='var(--green)'}else if(S.dts>40){pill.className='trust-pill trust-med';txt.textContent='Moderate risk';pill.querySelector('.trust-dot').style.background='var(--amber)'}else{pill.className='trust-pill trust-low';txt.textContent='High risk';pill.querySelector('.trust-dot').style.background='var(--red)'}
+  S.dtsHistory.push(r);if(S.dtsHistory.length>30)S.dtsHistory.shift();dtsChart.data.datasets[0].data=[...S.dtsHistory];dtsChart.data.datasets[0].borderColor=hex(S.dts);dtsChart.update('none');
+  const ato=(100-r)*0.9,iso=(100-r)/100*0.9;
+  $('mo-lstm').textContent=S.dts>70?'Normal':S.dts>40?'Drift detected':'Anomaly confirmed';$('mo-lstm').style.color=c;
+  $('mo-iso').textContent='Score '+iso.toFixed(2);$('mo-iso').style.color=c;$('mo-xgb').textContent=r+' / 100';$('mo-xgb').style.color=c;$('mo-ato').textContent=ato.toFixed(1)+'%';$('mo-ato').style.color=c;
+  const xa=$('xfer-advice'),xb=$('transfer-badge'),rn=$('risk-notice');if(xa){if(S.dts>70){xa.textContent='Session trust is high. Transfer can proceed without additional verification.';xb.textContent='Secure session';xb.style.cssText='background:var(--green-dim);color:var(--green);border:1px solid rgba(0,201,122,.25)';rn.classList.remove('show')}else if(S.dts>40){xa.textContent='Moderate risk. Transfer allowed but flagged.';xb.textContent='⚠ Moderate';xb.style.cssText='background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,176,32,.25)';rn.classList.remove('show')}else{xa.textContent='High risk. Transfer blocked — verify identity.';xb.textContent='⛔ Blocked';xb.style.cssText='background:var(--red-dim);color:var(--red);border:1px solid rgba(255,77,77,.25)';rn.classList.add('show')}}
+}
+
+function updateSig(id,val){
+  const prev=S.sigs[id]||0;S.prev[id]=prev;S.sigs[id]=Math.max(0,Math.min(100,val));const v=Math.round(S.sigs[id]),c=col(S.sigs[id]);
+  const d=Math.round(S.sigs[id]-prev),ds=d>0?'+'+d:String(d),dc=d>=0?'var(--green)':'var(--red)';
+  [['ss','sn'],['ms','mn'],['xs','xn']].forEach(([fp,np])=>{const f=$(fp+'-'+id),n=$(np+'-'+id);if(f){f.style.width=v+'%';f.style.background=c}if(n)n.textContent=v});
+  const de=$('md-'+id);if(de){de.textContent=ds;de.style.color=dc}
+  const sp=Math.max(1,Math.round((100-v)*0.8)),sh=$('sh-'+id),spEl=$('sp-'+id);
+  if(sh){sh.style.width=sp+'%';sh.style.background=col(100-sp)}if(spEl)spEl.textContent=sp+'%';
+}
+
+function recompute(){updateDTS(S.sigs.key*0.34+S.sigs.swipe*0.16+S.sigs.nav*0.10+S.sigs.dev*0.18+S.sigs.geo*0.10+S.sigs.txn*0.12)}
+
+// ── Typing ──
+function recordTyping(e){
+  S.typingEvents.push(performance.now());const ev=S.typingEvents;
+  if(ev.length>3){const diffs=[];for(let i=1;i<ev.length;i++)diffs.push(ev[i]-ev[i-1]);const avg=diffs.reduce((a,b)=>a+b,0)/diffs.length;const noise=(Math.random()-.5)*(S.attackMode?60:15);const baseline=S.attackMode?280:165;const deviation=Math.abs(avg+noise-baseline);const score=Math.max(S.attackMode?15:80,Math.min(S.attackMode?70:99,100-deviation/2.8));updateSig('key',score);recompute();if(ev.length>40)S.typingEvents.splice(0,10)}
+}
+
+// ── Alerts ──
+function addAlert(msg,type){
+  const now=new Date().toLocaleTimeString('en-IN',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});const el=document.createElement('div');el.className='alert-item alert-'+type;el.innerHTML=`<div class="alert-time">${now}</div><div class="alert-msg">${msg}</div>`;
+  ['alert-log','soc-full-log'].forEach(id=>{const log=$(id);if(log){log.insertBefore(el.cloneNode(true),log.firstChild);if(log.children.length>15)log.removeChild(log.lastChild)}})
+}
+function setShap(msg){$('shap-verdict').textContent=msg}
+
+// ── Scenarios ──
+function simReset(){stopAttack();updateSig('key',92);updateSig('swipe',88);updateSig('nav',95);updateSig('dev',100);updateSig('geo',98);updateSig('txn',90);recompute();setShap('All signals nominal — no anomaly contribution above threshold.');addAlert('Session reset — behavioural baseline reloaded','green')}
+function simGeo(){addAlert('Geo anomaly: login from new location (380 km from baseline)','amber');updateSig('geo',3);recompute();setShap('Geo context: 380 km shift (weight 10%). Behaviour & device nominal. Flagged, not challenged.')}
+function simNewDevice(){addAlert('New device detected — fingerprint hash mismatch','amber');updateSig('dev',0);recompute();setShap('Device fingerprint: unknown (weight 18%). Behaviour consistent. Step-up required.');setTimeout(()=>showOtp(),1200)}
+function simAttack(){
+  if(S.attackMode)return;S.attackMode=true;$('attacker-banner').classList.add('show');addAlert('Behavioural drift initiated — attacker simulation started','amber');
+  const targets={key:22,swipe:18,nav:30,dev:50,geo:25,txn:40};let step=0;
+  S.attackTimer=setInterval(()=>{step++;const frac=Math.min(1,step/10);
+    ['key','swipe','nav','dev','geo','txn'].forEach(id=>{const noise=(Math.random()-.5)*10;updateSig(id,S.sigs[id]+(targets[id]-S.sigs[id])*0.25+noise)});recompute();
+    if(step===4){addAlert('Keystroke timing: +72% deviation from baseline','amber');setShap('Keystroke: 72% deviation (CRITICAL). Swipe: anomalous. Device: hash mismatch. ATO probability rising.')}
+    if(step===8){addAlert('CRITICAL — DTS below threshold. Step-up authentication triggered','red');setShap('ALL SIGNALS COMPROMISED. LSTM: anomaly confirmed. Isolation Forest: 0.87. ATO probability 91%. Triggering step-up.');clearInterval(S.attackTimer);showOtp()}
+  },900)
+}
+function stopAttack(){S.attackMode=false;$('attacker-banner').classList.remove('show');if(S.attackTimer)clearInterval(S.attackTimer);S.typingEvents=[]}
+
+// ── OTP ──
+function showOtp(){['o1','o2','o3','o4','o5','o6'].forEach(id=>$(id).value='');$('otp-overlay').classList.add('show');setTimeout(()=>$('o1').focus(),100)}
+function otpNext(el,n){if(el.value.length===1)$(n).focus()}
+function getOtp(){return['o1','o2','o3','o4','o5','o6'].map(id=>$(id).value).join('')}
+function checkOtp(){if(getOtp().length===6)verifyOtp()}
+function verifyOtp(){
+  const otp=getOtp();$('otp-overlay').classList.remove('show');$('attacker-banner').classList.remove('show');
+  if(otp==='482150'){stopAttack();updateSig('key',92);updateSig('swipe',88);updateSig('nav',95);updateSig('dev',100);updateSig('geo',98);updateSig('txn',90);recompute();setShap('OTP verified. Session trust restored.');addAlert('Step-up PASSED — user identity confirmed, session resumed','green')}
+  else{stopAttack();S.blockedCount++;S.incidentCount++;$('sessions-blocked').textContent=S.blockedCount;updateSig('key',8);updateSig('swipe',6);updateSig('nav',10);updateSig('dev',15);updateSig('geo',10);updateSig('txn',12);recompute();setShap('OTP failed. Attacker confirmed. Session terminated. SOC escalated.');addAlert('OTP FAILED — attacker confirmed, session killed','red');addAlert('Account locked — user notified via SMS & email','red');$('incident-id').textContent=`Incident #ZLX-2026-0622-${String(S.incidentCount).padStart(4,'0')}`;setTimeout(()=>$('blocked-overlay').classList.add('show'),400)}
+}
+function resetAll(){$('blocked-overlay').classList.remove('show');simReset();S.dtsSum=94;S.dtsTicks=1;addAlert('New session started — clean baseline loaded','green')}
+
+// ── Transfer ──
+function doTransfer(){if(S.dts<70){addAlert('Transfer blocked — high-risk session','red');showOtp();return}const amt=$('txn-amt').value;if(!amt||isNaN(amt)||amt<=0)return;addAlert(`Transfer of ₹${parseFloat(amt).toLocaleString()} initiated — session DTS ${Math.round(S.dts)}`,'green');$('balance-display').textContent='₹'+(482150-parseFloat(amt)).toLocaleString('en-IN')+'.00';$('bene-name').value='';$('bene-acct').value='';$('bene-ifsc').value='';$('txn-amt').value=''}
+
+// ── Ambient drift ──
+setInterval(()=>{if(S.attackMode)return;['key','swipe','nav','txn'].forEach(id=>{const drift=(Math.random()-.5)*4;const base={key:92,swipe:88,nav:95,txn:90}[id];updateSig(id,Math.max(base-8,Math.min(base+4,S.sigs[id]+drift)))});recompute()},3000);
+</script>
+</body>
+</html>
