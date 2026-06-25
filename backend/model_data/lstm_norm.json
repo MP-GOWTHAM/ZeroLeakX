@@ -1,0 +1,14 @@
+{
+  "mean": [
+    90.09621122994933,
+    147.10049108734592
+  ],
+  "std": [
+    30.496370289380362,
+    214.20364943765827
+  ],
+  "p50": 0.1322545919585567,
+  "p95": 0.5886719952115007,
+  "hidden": 16,
+  "note": "LSTM autoencoder; anomaly = recon error scaled between p50..p95 of genuine errors"
+}

@@ -1,0 +1,9 @@
+{
+  "subjects": 51,
+  "accuracy_mean": 0.6997,
+  "auc_mean": 0.8514,
+  "eer_mean": 0.2011,
+  "features": 10,
+  "protocol": "per-subject genuine vs impostors from unseen identities; genuine train=200 reps, impostor identities disjoint train/test",
+  "dataset": "CMU DSL-StrongPasswordData (Killourhy & Maxion 2009), 51 subjects"
+}

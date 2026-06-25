@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZeroLeakX — Live ATO Detection | PSB Hackathon 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css?v=5">
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ══ SIDEBAR ══ -->
+<div class="sidebar">
+  <div class="brand">
+    <div class="brand-logo">
+      <div class="brand-icon">🛡</div>
+      <div>
+        <div class="brand-name">ZeroLeakX</div>
+        <div class="brand-sub">PSB Hackathon 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dts-mini">
+    <div class="dts-mini-label">Live Trust Score</div>
+    <div class="dts-mini-num" id="dts-mini-num" style="color:var(--green)">94</div>
+    <div class="dts-mini-bar"><div class="dts-mini-fill" id="dts-mini-fill" style="width:94%;background:var(--green)"></div></div>
+    <div class="dts-mini-status" id="dts-mini-status" style="color:var(--green)">● Session trusted</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">Banking</div>
+    <div class="nav-item active" onclick="switchNav(this,'dashboard')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="switchNav(this,'transfer')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Transfer funds
+    </div>
+    <div class="nav-item" onclick="switchNav(this,'statements')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Statements
+    </div>
+    <div class="nav-label">Security</div>
+    <div class="nav-item" onclick="switchNav(this,'calibrate')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg>
+      Calibrate
+    </div>
+    <div class="nav-item" onclick="switchNav(this,'soc-view')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      SOC View
+    </div>
+    <div class="nav-item" onclick="switchNav(this,'soc-console')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      SOC Console
+    </div>
+    <div class="nav-item" onclick="switchNav(this,'simulate')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+      Simulate
+    </div>
+  </div>
+
+  <div class="session-info">
+    <div class="session-row">
+      <div class="avatar" id="user-avatar">GU</div>
+      <div>
+        <div class="session-name" id="user-name">guest</div>
+        <div class="session-acct" id="user-geo">📍 locating…</div>
+      </div>
+      <div class="session-dot"></div>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="logout()">Switch user / log out</button>
+  </div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="breadcrumb">BOB NetBanking › <span id="page-crumb">Overview</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="conn-pill" id="conn-pill"><div class="conn-dot"></div><span id="conn-text">Connecting…</span></div>
+      <div class="time-display" id="clock">--:--:--</div>
+      <div class="trust-pill trust-high" id="trust-pill">
+        <div class="trust-dot" style="background:var(--green)"></div>
+        <span id="trust-text">Trusted</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-scroll">
+    <div class="attacker-banner" id="attacker-banner">
+      <div class="attacker-banner-text">⚠ Attacker simulation active — synthetic behavioural mismatch being scored by the live model</div>
+      <button class="btn btn-sm btn-ghost" onclick="simReset()">Stop sim</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="panel-dashboard" class="tab-panel active">
+      <div class="grid4" style="margin-bottom:16px">
+        <div class="stat-box">
+          <div class="stat-val" style="color:var(--text)">₹4,82,150</div>
+          <div class="stat-label">Account balance</div>
+          <div class="stat-change" style="color:var(--green)">+₹85,000 this month</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="sessions-blocked" style="color:var(--red)">0</div>
+          <div class="stat-label">Attacks blocked</div>
+          <div class="stat-change" style="color:var(--muted2)">this session</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="dts-avg" style="color:var(--amber)">94</div>
+          <div class="stat-label">Avg DTS (session)</div>
+          <div class="stat-change" style="color:var(--muted2)">updated live</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="model-mode" style="color:var(--purple)">Pop.</div>
+          <div class="stat-label">Model mode</div>
+          <div class="stat-change" style="color:var(--muted2)" id="model-mode-sub">cold-start baseline</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Account balance</div>
+            <span class="card-badge badge-ok">Verified</span>
+          </div>
+          <div class="balance-display">
+            <div class="balance-num" id="balance-display">₹4,82,150.00</div>
+            <div class="balance-acct">Savings • Bank of Baroda • •••• 4821</div>
+          </div>
+          <div class="balance-actions">
+            <button class="btn btn-primary btn-sm" onclick="switchNav(document.querySelector('[onclick*=transfer]'),'transfer')">Transfer</button>
+            <button class="btn btn-ghost btn-sm" onclick="switchNav(document.querySelector('[onclick*=calibrate]'),'calibrate')">Calibrate typing</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">DTS history</div>
+            <span class="card-badge badge-live">● LIVE</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="dts-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent transactions</div>
+          <span class="card-badge badge-ok">All verified</span>
+        </div>
+        <div class="txn-row">
+          <div class="txn-icon" style="background:rgba(255,176,32,.1)">🍕</div>
+          <div class="txn-info"><div class="txn-name">Swiggy</div><div class="txn-date">Today 11:42 AM · Food & Dining</div></div>
+          <div class="txn-amt" style="color:var(--red)">−₹348</div>
+        </div>
+        <div class="txn-row">
+          <div class="txn-icon" style="background:rgba(0,201,122,.1)">💰</div>
+          <div class="txn-info"><div class="txn-name">Salary credit — PSG Tech</div><div class="txn-date">Jun 20 · Income</div></div>
+          <div class="txn-amt" style="color:var(--green)">+₹85,000</div>
+        </div>
+        <div class="txn-row">
+          <div class="txn-icon" style="background:rgba(61,127,255,.1)">⚡</div>
+          <div class="txn-info"><div class="txn-name">BESCOM Electricity Bill</div><div class="txn-date">Jun 18 · Utilities</div></div>
+          <div class="txn-amt" style="color:var(--red)">−₹2,140</div>
+        </div>
+        <div class="txn-row">
+          <div class="txn-icon" style="background:rgba(155,111,255,.1)">📦</div>
+          <div class="txn-info"><div class="txn-name">Amazon Pay</div><div class="txn-date">Jun 15 · Shopping</div></div>
+          <div class="txn-amt" style="color:var(--red)">−₹1,299</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSFER -->
+    <div id="panel-transfer" class="tab-panel">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Fund transfer — NEFT/IMPS</div>
+            <span class="card-badge" id="transfer-badge" style="background:var(--green-dim);color:var(--green);border:1px solid rgba(0,201,122,.25)">Secure session</span>
+          </div>
+          <div class="risk-notice" id="risk-notice">⚠ High-risk session detected. Verify identity before transfer.</div>
+          <div class="form-group">
+            <label class="form-label">Beneficiary name</label>
+            <input class="form-input bio" id="bene-name" placeholder="Full name">
+          </div>
+          <div class="input-row">
+            <div class="form-group">
+              <label class="form-label">Account number</label>
+              <input class="form-input bio" id="bene-acct" placeholder="Enter account no.">
+            </div>
+            <div class="form-group">
+              <label class="form-label">IFSC code</label>
+              <input class="form-input bio" id="bene-ifsc" placeholder="e.g. BARB0COIMBR">
+            </div>
+          </div>
+          <div class="input-row">
+            <div class="form-group">
+              <label class="form-label">Amount (₹)</label>
+              <input class="form-input bio" id="txn-amt" placeholder="0.00" type="number">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select class="form-input" id="txn-mode">
+                <option>IMPS (Instant)</option>
+                <option>NEFT</option>
+                <option>RTGS</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Remarks (optional)</label>
+            <input class="form-input bio" id="txn-remarks" placeholder="Payment description">
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="doTransfer()">Confirm transfer</button>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Transfer risk assessment</div>
+          </div>
+          <div class="dts-gauge" style="padding-bottom:4px">
+            <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">Current session DTS</div>
+            <div class="dts-big" id="dts-xfer" style="color:var(--green)">94</div>
+            <div class="dts-bar-big"><div class="dts-fill-big" id="dts-xfer-bar" style="width:94%;background:var(--green)"></div></div>
+          </div>
+          <div class="sig-grid" style="margin-top:10px">
+            <div class="sig-row"><span class="sig-label">Keystroke pattern</span><div class="sig-track"><div class="sig-fill" id="xs-key" style="width:92%;background:var(--green)"></div></div><span class="sig-num" id="xn-key">92</span></div>
+            <div class="sig-row"><span class="sig-label">Device fingerprint</span><div class="sig-track"><div class="sig-fill" id="xs-device" style="width:100%;background:var(--green)"></div></div><span class="sig-num" id="xn-device">100</span></div>
+            <div class="sig-row"><span class="sig-label">Geo context</span><div class="sig-track"><div class="sig-fill" id="xs-geo" style="width:98%;background:var(--green)"></div></div><span class="sig-num" id="xn-geo">98</span></div>
+          </div>
+          <div style="margin-top:14px;font-size:10px;color:var(--muted2);line-height:1.6" id="xfer-advice">
+            Session trust is high. Transfer can proceed without additional verification.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATEMENTS -->
+    <div id="panel-statements" class="tab-panel">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Account statement — June 2026</div></div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:8px 10px;color:var(--muted2);font-weight:600;font-size:10px;text-transform:uppercase">Date</th>
+            <th style="text-align:left;padding:8px 10px;color:var(--muted2);font-weight:600;font-size:10px;text-transform:uppercase">Description</th>
+            <th style="text-align:left;padding:8px 10px;color:var(--muted2);font-weight:600;font-size:10px;text-transform:uppercase">Type</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--muted2);font-weight:600;font-size:10px;text-transform:uppercase">Amount</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--muted2);font-weight:600;font-size:10px;text-transform:uppercase">Balance</th>
+          </tr></thead>
+          <tbody id="stmt-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CALIBRATE -->
+    <div id="panel-calibrate" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Behavioural baseline calibration</div>
+          <span class="card-badge" id="calib-badge" style="background:var(--amber-dim);color:var(--amber);border:1px solid rgba(255,176,32,.25)">Not enrolled</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:14px">
+          Type the sentences below naturally. ZeroLeakX extracts your keystroke-dynamics
+          fingerprint <strong style="color:var(--text)">on-device</strong> (dwell, flight, rhythm) and trains a
+          personal Isolation Forest + XGBoost model. Raw keystrokes never leave the browser — only
+          the feature vectors are sent. Aim for at least 4 lines.
+        </div>
+        <div id="calib-metric" style="font-size:11px;color:var(--muted2);background:var(--s3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:14px">Loading model validation…</div>
+        <div class="calib-sentence" id="calib-sentence">the quick brown fox jumps over the lazy dog near the river bank</div>
+        <input class="form-input" id="calib-input" placeholder="Type the sentence above and press Enter…" autocomplete="off">
+        <div class="calib-progress"><div class="calib-progress-fill" id="calib-fill"></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:11px;color:var(--muted2)"><span id="calib-count">0</span> / 6 lines captured · <span id="calib-windows">0</span> feature windows</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" id="calib-enroll-btn" onclick="enrollBaseline()" disabled>Train personal model</button>
+            <button class="btn btn-ghost btn-sm" onclick="calibSkip()">Skip line</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Live feature extraction (on-device)</div></div>
+        <div class="sig-grid" id="calib-features" style="font-family:var(--mono);font-size:11px;color:var(--muted2);gap:4px">
+          <div>Hold on — start typing to see live keystroke features…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOC VIEW -->
+    <div id="panel-soc-view" class="tab-panel">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Behavioral signal matrix</div><span class="card-badge badge-live">● LIVE</span></div>
+          <div class="sig-grid" id="main-sig-grid">
+            <div class="sig-row"><span class="sig-label">Keystroke timing</span><div class="sig-track"><div class="sig-fill" id="ms-key" style="width:92%;background:var(--green)"></div></div><span class="sig-num" id="mn-key">92</span></div>
+            <div class="sig-row"><span class="sig-label">Pointer / swipe</span><div class="sig-track"><div class="sig-fill" id="ms-swipe" style="width:88%;background:var(--green)"></div></div><span class="sig-num" id="mn-swipe">88</span></div>
+            <div class="sig-row"><span class="sig-label">Navigation flow</span><div class="sig-track"><div class="sig-fill" id="ms-nav" style="width:95%;background:var(--green)"></div></div><span class="sig-num" id="mn-nav">95</span></div>
+            <div class="sig-row"><span class="sig-label">Device fingerprint</span><div class="sig-track"><div class="sig-fill" id="ms-device" style="width:100%;background:var(--green)"></div></div><span class="sig-num" id="mn-device">100</span></div>
+            <div class="sig-row"><span class="sig-label">Geo context</span><div class="sig-track"><div class="sig-fill" id="ms-geo" style="width:98%;background:var(--green)"></div></div><span class="sig-num" id="mn-geo">98</span></div>
+            <div class="sig-row"><span class="sig-label">Txn velocity</span><div class="sig-track"><div class="sig-fill" id="ms-txn" style="width:90%;background:var(--green)"></div></div><span class="sig-num" id="mn-txn">90</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">SHAP anomaly contribution</div></div>
+          <div id="shap-grid" class="sig-grid"></div>
+          <div style="margin-top:12px;font-size:10px;color:var(--muted2)" id="shap-verdict">All signals nominal — no anomaly contribution above threshold.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Session event log</div></div>
+        <div id="soc-full-log" style="max-height:220px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <!-- SIMULATE -->
+    <div id="panel-simulate" class="tab-panel">
+      <div class="card">
+        <div class="card-header"><div class="card-title">ZeroLeakX scenario simulator</div></div>
+        <div style="font-size:12px;color:var(--muted2);line-height:1.6;margin-bottom:16px">
+          Each scenario feeds <strong style="color:var(--text)">synthetic behavioural input through the real ML model</strong>
+          on the server — the detection, scoring and SHAP explanation are genuine. Watch the SOC panel (right) react live.
+        </div>
+        <div class="sim-card">
+          <div class="sim-title">Scenario 1 — Credential-stuffing takeover</div>
+          <div class="sim-desc">Attacker logs in with stolen credentials from a new device + location and types with a different rhythm. The model scores keystroke, device and geo all diverging over ~8s. DTS crosses critical → step-up OTP → attacker fails → session killed.</div>
+          <div class="sim-btns">
+            <button class="btn btn-red btn-sm" onclick="simAttack()">▶ Run scenario</button>
+            <button class="btn btn-ghost btn-sm" onclick="simReset()">Reset</button>
+          </div>
+        </div>
+        <div class="sim-card">
+          <div class="sim-title">Scenario 2 — Mid-session behavioural takeover</div>
+          <div class="sim-desc">Same device, but a different person takes over the keyboard mid-session. Only keystroke + pointer dynamics drift. DTS dips to high-risk → one-time step-up challenge, no hard block. Pure behavioural-biometric detection.</div>
+          <div class="sim-btns">
+            <button class="btn btn-red btn-sm" onclick="simBehaviour()">▶ Run scenario</button>
+            <button class="btn btn-ghost btn-sm" onclick="simReset()">Reset</button>
+          </div>
+        </div>
+        <div class="sim-card">
+          <div class="sim-title">Scenario 3 — Geo anomaly (travel)</div>
+          <div class="sim-desc">Legitimate user logs in from a city 380 km away. Geo context collapses, but it is a low-weight contextual signal by design — so with clean keystroke + device behaviour the DTS only dips slightly. The event is logged and monitoring tightens, but the user is NOT challenged. Correct: travel alone shouldn't punish a genuine user.</div>
+          <div class="sim-btns">
+            <button class="btn btn-amber btn-sm" onclick="simGeo()">▶ Run scenario</button>
+            <button class="btn btn-ghost btn-sm" onclick="simReset()">Reset</button>
+          </div>
+        </div>
+        <div class="sim-card">
+          <div class="sim-title">Scenario 4 — New device login</div>
+          <div class="sim-desc">User logs in from an unrecognised device. Device fingerprint drops to 0; behaviour stays consistent. DTS falls to high — step-up OTP triggered, but session resumes after verification (device added to trusted list).</div>
+          <div class="sim-btns">
+            <button class="btn btn-amber btn-sm" onclick="simNewDevice()">▶ Run scenario</button>
+            <button class="btn btn-ghost btn-sm" onclick="simReset()">Reset</button>
+          </div>
+        </div>
+        <div class="sim-card">
+          <div class="sim-title">Scenario 5 — Legitimate session</div>
+          <div class="sim-desc">Type naturally in the transfer form and watch keystroke dynamics respond to your real typing. DTS stays high, no alerts, transfer proceeds seamlessly.</div>
+          <div class="sim-btns">
+            <button class="btn btn-green btn-sm" onclick="simReset();switchNav(document.querySelector('[onclick*=transfer]'),'transfer')">▶ Go to transfer form</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOC CONSOLE (admin: all sessions) -->
+    <div id="panel-soc-console" class="tab-panel">
+      <div class="grid4" style="margin-bottom:16px">
+        <div class="stat-box"><div class="stat-val" id="soc-active" style="color:var(--blue)">0</div><div class="stat-label">Active sessions</div></div>
+        <div class="stat-box"><div class="stat-val" id="soc-atrisk" style="color:var(--amber)">0</div><div class="stat-label">At-risk (DTS &lt; 50)</div></div>
+        <div class="stat-box"><div class="stat-val" id="soc-blocked" style="color:var(--red)">0</div><div class="stat-label">Blocked</div></div>
+        <div class="stat-box"><div class="stat-val" id="soc-ws" style="color:var(--muted2);font-size:13px">connecting…</div><div class="stat-label">Live feed (WebSocket)</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">All monitored sessions — live</div>
+          <div style="display:flex;gap:8px">
+            <span class="card-badge badge-live">● WS LIVE</span>
+            <button class="btn btn-ghost btn-sm" onclick="exportAudit()">Export audit CSV</button>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:8px 10px;color:var(--muted2);font-size:10px;text-transform:uppercase">User</th>
+            <th style="text-align:left;padding:8px 10px;color:var(--muted2);font-size:10px;text-transform:uppercase">Session</th>
+            <th style="text-align:left;padding:8px 10px;color:var(--muted2);font-size:10px;text-transform:uppercase">Location</th>
+            <th style="text-align:left;padding:8px 10px;color:var(--muted2);font-size:10px;text-transform:uppercase">Channel</th>
+            <th style="text-align:left;padding:8px 10px;color:var(--muted2);font-size:10px;text-transform:uppercase">Model</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--muted2);font-size:10px;text-transform:uppercase">DTS</th>
+            <th style="text-align:right;padding:8px 10px;color:var(--muted2);font-size:10px;text-transform:uppercase">Risk</th>
+          </tr></thead>
+          <tbody id="soc-sessions-body"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Global audit log (persisted)</div></div>
+        <div id="soc-audit-log" style="max-height:240px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+  </div><!-- end main-scroll -->
+</div><!-- end main -->
+
+<!-- ══ SOC PANEL ══ -->
+<div class="soc">
+  <div class="soc-top">
+    <div class="soc-title">
+      <div class="live-dot"></div>
+      SOC Monitor
+    </div>
+  </div>
+  <div class="soc-scroll">
+    <div class="soc-block">
+      <div class="soc-label">Dynamic Trust Score</div>
+      <div class="dts-gauge">
+        <div class="dts-big" id="dts-big" style="color:var(--green)">94</div>
+        <div class="dts-of">/100</div>
+        <div class="dts-bar-big"><div class="dts-fill-big" id="dts-fill-big" style="width:94%;background:var(--green)"></div></div>
+        <div class="risk-gradient"><div class="risk-needle" id="risk-needle" style="left:94%"></div></div>
+        <div class="dts-verdict trust-high" id="dts-verdict" style="background:var(--green-dim);color:var(--green);border:1px solid rgba(0,201,122,.3)">Low risk</div>
+      </div>
+    </div>
+
+    <div class="soc-block">
+      <div class="soc-label">Signal breakdown</div>
+      <div class="sig-grid">
+        <div class="sig-row"><span class="sig-label">Keystroke</span><div class="sig-track"><div class="sig-fill" id="ss-key" style="width:92%;background:var(--green)"></div></div><span class="sig-num" id="sn-key">92</span></div>
+        <div class="sig-row"><span class="sig-label">Swipe</span><div class="sig-track"><div class="sig-fill" id="ss-swipe" style="width:88%;background:var(--green)"></div></div><span class="sig-num" id="sn-swipe">88</span></div>
+        <div class="sig-row"><span class="sig-label">Navigation</span><div class="sig-track"><div class="sig-fill" id="ss-nav" style="width:95%;background:var(--green)"></div></div><span class="sig-num" id="sn-nav">95</span></div>
+        <div class="sig-row"><span class="sig-label">Device</span><div class="sig-track"><div class="sig-fill" id="ss-device" style="width:100%;background:var(--green)"></div></div><span class="sig-num" id="sn-device">100</span></div>
+        <div class="sig-row"><span class="sig-label">Geo</span><div class="sig-track"><div class="sig-fill" id="ss-geo" style="width:98%;background:var(--green)"></div></div><span class="sig-num" id="sn-geo">98</span></div>
+        <div class="sig-row"><span class="sig-label">Velocity</span><div class="sig-track"><div class="sig-fill" id="ss-txn" style="width:90%;background:var(--green)"></div></div><span class="sig-num" id="sn-txn">90</span></div>
+      </div>
+    </div>
+
+    <div class="soc-block">
+      <div class="soc-label">Model output</div>
+      <div style="font-size:11px;color:var(--muted2);line-height:1.7" id="model-output">
+        <div>LSTM drift: <span style="color:var(--green);font-family:var(--mono)" id="mo-lstm">Normal</span></div>
+        <div>Isolation Forest: <span style="color:var(--green);font-family:var(--mono)" id="mo-iso">Score 0.04</span></div>
+        <div>XGBoost DTS: <span style="color:var(--green);font-family:var(--mono)" id="mo-xgb">94 / 100</span></div>
+        <div>ATO Probability: <span style="color:var(--green);font-family:var(--mono)" id="mo-ato">2.0%</span></div>
+      </div>
+    </div>
+
+    <div class="soc-block" style="flex:1;overflow-y:auto">
+      <div class="soc-label">Alert log</div>
+      <div id="alert-log"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- shell -->
+
+<!-- OTP Overlay -->
+<div class="overlay" id="otp-overlay">
+  <div class="modal">
+    <div class="modal-icon">🔐</div>
+    <div class="modal-title" id="modal-title">Identity verification required</div>
+    <div class="modal-desc" id="modal-desc">ZeroLeakX detected anomalous behaviour. Enter the OTP sent to •••• 7291 to continue.</div>
+    <div class="otp-row">
+      <input class="otp-box" maxlength="1" id="o1" oninput="otpNext(this,'o2')">
+      <input class="otp-box" maxlength="1" id="o2" oninput="otpNext(this,'o3')">
+      <input class="otp-box" maxlength="1" id="o3" oninput="otpNext(this,'o4')">
+      <input class="otp-box" maxlength="1" id="o4" oninput="otpNext(this,'o5')">
+      <input class="otp-box" maxlength="1" id="o5" oninput="otpNext(this,'o6')">
+      <input class="otp-box" maxlength="1" id="o6" oninput="checkOtp()">
+    </div>
+    <div class="otp-hint" id="otp-hint"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="verifyOtp()">Verify OTP</button>
+      <button class="btn btn-ghost" onclick="cancelSession()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Blocked overlay -->
+<div class="blocked-overlay" id="blocked-overlay">
+  <div class="blocked-card">
+    <div class="blocked-icon">🚫</div>
+    <div class="blocked-title">Session terminated</div>
+    <div class="blocked-desc">ZeroLeakX confirmed an unauthorized access attempt. The session has been forcibly terminated, the account holder notified via SMS and email, and the incident escalated to the Security Operations Center.</div>
+    <div class="incident-id" id="incident-id">Incident #ZLX-2026-0622-0001</div>
+    <button class="btn btn-ghost" onclick="resetAll()">Start new session</button>
+  </div>
+</div>
+
+<!-- Login overlay -->
+<div class="blocked-overlay show" id="login-overlay" style="background:rgba(8,12,24,.97)">
+  <div class="blocked-card" style="border-color:var(--border2);max-width:380px">
+    <div style="font-size:34px;margin-bottom:8px">🛡</div>
+    <div class="blocked-title" style="color:#fff;font-size:18px">ZeroLeakX NetBanking</div>
+    <div class="blocked-desc" style="margin-bottom:18px">Continuous behavioural authentication. Log in as an existing user (loads their typing baseline) or create a new one. For the two-person demo: enrol a baseline, then log in again and let a different person type.</div>
+    <input class="form-input" id="login-username" placeholder="Username (e.g. alice)" autocomplete="off" style="text-align:center;margin-bottom:12px" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-users" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Log in</button>
+  </div>
+</div>
+
+<button class="soc-fab" id="soc-fab" onclick="toggleSOC()"><span>🛡 SOC</span> <span class="fab-dts" id="fab-dts">94</span></button>
+
+<script src="app.js?v=6"></script>
+</body>
+</html>

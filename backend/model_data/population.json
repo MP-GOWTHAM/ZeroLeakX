@@ -1,0 +1,39 @@
+{
+  "mean": [
+    90.0962,
+    20.1812,
+    158.9173,
+    145.4183,
+    4.7493,
+    0.0413,
+    0.2223,
+    1.1182,
+    327.3672,
+    2.0362
+  ],
+  "std": [
+    20.9638,
+    9.1251,
+    117.6764,
+    119.0004,
+    1.4481,
+    0.023,
+    0.0679,
+    1.8522,
+    222.6377,
+    0.3851
+  ],
+  "features": [
+    "mean_dwell",
+    "std_dwell",
+    "mean_flight",
+    "std_flight",
+    "typing_speed",
+    "backspace_rate",
+    "dwell_cv",
+    "flight_cv",
+    "flight_p90",
+    "rhythm_entropy"
+  ],
+  "source": "CMU DSL-StrongPasswordData (Killourhy & Maxion 2009)"
+}
